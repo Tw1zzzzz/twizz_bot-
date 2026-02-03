@@ -1,0 +1,16 @@
+[Unit]
+Description=Twizz Bot (ScoutScope)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/twizz_bot
+EnvironmentFile=/opt/twizz_bot/.env
+ExecStart=/opt/twizz_bot/venv/bin/python /opt/twizz_bot/main.py
+Restart=always
+RestartSec=5
+User=twizzbot
+Group=twizzbot
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,98 @@
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+def main_menu():
+    kb = [
+        [KeyboardButton(text="Магазин 🛍️"), KeyboardButton(text="Отзывы 💡")],
+        [KeyboardButton(text="Соц.Сети 🌐"), KeyboardButton(text="Поддержка 👩‍💻")]
+    ]
+    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+
+def products_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="ScoutScope", callback_data="prod_scout_scope")
+    builder.button(text="PerformanceCoach CRM", callback_data="prod_crm")
+    builder.button(text="CIS FINDER BOT", callback_data="prod_cis_bot")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def scout_scope_menu(has_file=False):
+    builder = InlineKeyboardBuilder()
+    if has_file:
+        builder.button(text="Демоверсия", callback_data="demo_scout_scope")
+    builder.button(text="Pro Версия 🌟", callback_data="buy_scout_scope")
+    builder.button(text="Назад 🔙", callback_data="back_to_shop")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def scout_scope_pro_plans_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Базовый — 1500 руб/мес", callback_data="plan_scout_scope_basic")
+    builder.button(text="Стандарт — 2000 руб/мес", callback_data="plan_scout_scope_standard")
+    builder.button(text="Премиум — 3000руб/3 мес", callback_data="plan_scout_scope_3m")
+    builder.button(text="Назад 🔙", callback_data="prod_scout_scope")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def crm_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Pro Версия 🌟", callback_data="buy_crm")
+    builder.button(text="Назад 🔙", callback_data="back_to_shop")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def cis_bot_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Перейти к боту 🤖", url="https://t.me/Cisfinderofficial_bot")
+    builder.button(text="Назад 🔙", callback_data="back_to_shop")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def file_type_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📦 Приложение", callback_data="file_type_app")
+    builder.button(text="🗄️ База данных", callback_data="file_type_db")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def admin_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📦 Загрузить файлы", callback_data="admin_upload")
+    builder.button(text="📊 Просмотр продуктов", callback_data="admin_view_products")
+    builder.button(text="📢 Отправить уведомление", callback_data="admin_send_notification")
+    builder.button(text="📈 Статистика", callback_data="admin_stats")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def upload_action_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Сохранить и разослать", callback_data="upload_broadcast")
+    builder.button(text="💾 Только сохранить", callback_data="upload_save_only")
+    builder.button(text="❌ Отменить", callback_data="upload_cancel")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def notification_products_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="ScoutScope", callback_data="notify_scout_scope")
+    builder.button(text="PerformanceCoach CRM", callback_data="notify_crm")
+    builder.button(text="CIS FINDER BOT", callback_data="notify_cis_bot")
+    builder.button(text="📢 Всем пользователям", callback_data="notify_all")
+    builder.button(text="🔙 Назад", callback_data="admin_back")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def confirm_broadcast_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Да, отправить", callback_data="confirm_yes")
+    builder.button(text="❌ Отменить", callback_data="confirm_no")
+    builder.adjust(2)
+    return builder.as_markup()
+
+def social_networks_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Telegram 📱", url="https://t.me/tw1zz_project")
+    builder.button(text="Сайт 🌐", url="https://twizz-project.ru/")
+    builder.button(text="VK 💬", url="https://vk.com/tw1zz_manager")
+    builder.adjust(1)
+    return builder.as_markup()
