@@ -19,7 +19,7 @@ def products_menu():
 def scout_scope_menu(has_file=False):
     builder = InlineKeyboardBuilder()
     if has_file:
-        builder.button(text="Демоверсия", callback_data="demo_scout_scope")
+        builder.button(text="Демоверсия", callback_data="demo_select_scout_scope")
     builder.button(text="Pro Версия 🌟", callback_data="buy_scout_scope")
     builder.button(text="Назад 🔙", callback_data="back_to_shop")
     builder.adjust(1)
@@ -34,8 +34,10 @@ def scout_scope_pro_plans_menu():
     builder.adjust(1)
     return builder.as_markup()
 
-def crm_menu():
+def crm_menu(has_file=False):
     builder = InlineKeyboardBuilder()
+    if has_file:
+        builder.button(text="Демоверсия", callback_data="demo_select_crm")
     builder.button(text="Pro Версия 🌟", callback_data="buy_crm")
     builder.button(text="Назад 🔙", callback_data="back_to_shop")
     builder.adjust(1)
@@ -53,6 +55,21 @@ def file_type_menu():
     builder.button(text="📦 Приложение", callback_data="file_type_app")
     builder.button(text="🗄️ База данных", callback_data="file_type_db")
     builder.adjust(1)
+    return builder.as_markup()
+
+def platform_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Windows", callback_data="platform_win")
+    builder.button(text="macOS", callback_data="platform_mac")
+    builder.adjust(2)
+    return builder.as_markup()
+
+def demo_platform_menu(product_key: str):
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Windows", callback_data=f"demo_download_{product_key}_win")
+    builder.button(text="macOS", callback_data=f"demo_download_{product_key}_mac")
+    builder.button(text="Назад 🔙", callback_data=f"prod_{product_key}")
+    builder.adjust(2)
     return builder.as_markup()
 
 def admin_menu():

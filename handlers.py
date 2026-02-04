@@ -34,6 +34,7 @@ SCOUT_SCOPE_PLANS = {
 class AdminStates(StatesGroup):
     waiting_for_product_selection = State()
     waiting_for_file_type = State()
+    waiting_for_platform = State()
     waiting_for_version = State()
     waiting_for_broadcast_action = State()
     waiting_for_notification_text = State()
@@ -105,12 +106,22 @@ async def admin_view_products(callback: CallbackQuery):
     text = "📊 *Текущие продукты:*\n\n"
     for product in products:
         text += f"📦 *{product['name']}* (`{product['key']}`)\n"
-        if product['version']:
-            text += f"   └ Версия приложения: `{product['version']}`\n"
+        if product['key'] in ('scout_scope', 'crm'):
+            if product['version']:
+                text += f"   └ Windows версия: `{product['version']}`\n"
+            else:
+                text += f"   └ Windows версия: не загружено\n"
+            if product['version_mac']:
+                text += f"   └ macOS версия: `{product['version_mac']}`\n"
+            else:
+                text += f"   └ macOS версия: не загружено\n"
         else:
-            text += f"   └ Приложение: не загружено\n"
+            if product['version']:
+                text += f"   └ Версия приложения: `{product['version']}`\n"
+            else:
+                text += f"   └ Приложение: не загружено\n"
         
-        if product['key'] == 'scout_scope':
+        if product['key'] in ('scout_scope', 'crm'):
             if product['db_version']:
                 text += f"   └ Версия БД: `{product['db_version']}`\n"
             else:
@@ -207,7 +218,14 @@ async def admin_stats(callback: CallbackQuery):
     user_count = await db.get_user_count()
     products = await db.get_all_products()
     
-    uploaded_files = sum(1 for p in products if p['file_id'])
+    uploaded_files = 0
+    for p in products:
+        if p['file_id']:
+            uploaded_files += 1
+        if p['file_id_mac']:
+            uploaded_files += 1
+        if p['db_file_id']:
+            uploaded_files += 1
     
     text = (
         f"📈 *Статистика бота*\n\n"
@@ -236,12 +254,12 @@ async def admin_select_product(callback: CallbackQuery, state: FSMContext):
     product_key = callback.data.split("_", 1)[1]
     await state.update_data(product_key=product_key)
     
-    if product_key == 'scout_scope':
+    if product_key in ('scout_scope', 'crm'):
         await callback.message.answer("Что вы загружаете?", reply_markup=kb.file_type_menu())
         await state.set_state(AdminStates.waiting_for_file_type)
     else:
         await callback.message.answer("Введите версию продукта (например, 1.0.5):")
-        await state.update_data(file_type='app')
+        await state.update_data(file_type='app', platform='win')
         await state.set_state(AdminStates.waiting_for_version)
     await callback.answer()
 
@@ -251,10 +269,18 @@ async def admin_select_file_type(callback: CallbackQuery, state: FSMContext):
     await state.update_data(file_type=file_type)
     
     if file_type == 'app':
-        await callback.message.answer("Введите версию приложения (например, 1.0.5):")
+        await callback.message.answer("Для какой платформы загружается приложение?", reply_markup=kb.platform_menu())
+        await state.set_state(AdminStates.waiting_for_platform)
     else:
         await callback.message.answer("Введите версию базы данных (например, 2.1.0):")
-    
+    await callback.answer()
+
+@router.callback_query(AdminStates.waiting_for_platform, F.data.startswith("platform_"))
+async def admin_select_platform(callback: CallbackQuery, state: FSMContext):
+    platform = callback.data.split("_", 1)[1]
+    await state.update_data(platform=platform)
+    platform_name = "Windows" if platform == "win" else "macOS"
+    await callback.message.answer(f"Введите версию приложения для {platform_name} (например, 1.0.5):")
     await state.set_state(AdminStates.waiting_for_version)
     await callback.answer()
 
@@ -266,9 +292,14 @@ async def admin_set_version(message: Message, state: FSMContext):
     data = await state.get_data()
     file_type = data.get('file_type', 'app')
     file_type_name = "приложения" if file_type == 'app' else "базы данных"
+    platform = data.get('platform')
+    platform_note = ""
+    if file_type == 'app' and platform in ('win', 'mac'):
+        platform_name = "Windows" if platform == "win" else "macOS"
+        platform_note = f" ({platform_name})"
     
     await message.answer(
-        f"📝 Версия {file_type_name}: `{version}`\n\n"
+        f"📝 Версия {file_type_name}{platform_note}: `{version}`\n\n"
         f"Что делать дальше?",
         reply_markup=kb.upload_action_menu(),
         parse_mode="Markdown"
@@ -280,10 +311,14 @@ async def admin_broadcast_file(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     version = data['version']
     file_type = data.get('file_type', 'app')
+    platform = data.get('platform', 'win')
     
     # Сохраняем в БД
     if file_type == 'app':
-        await db.update_product_file(data['product_key'], data['file_id'], version)
+        if platform == 'mac':
+            await db.update_product_file_mac(data['product_key'], data['file_id'], version)
+        else:
+            await db.update_product_file(data['product_key'], data['file_id'], version)
         file_desc = "приложения"
     else:
         await db.update_product_db(data['product_key'], data['file_id'], version)
@@ -299,14 +334,18 @@ async def admin_broadcast_file(callback: CallbackQuery, state: FSMContext):
     for user_id in users:
         try:
             if file_type == 'app':
-                caption = f"🔥 Вышло обновление {product['name']}!\n\n📦 Приложение версия: {version}"
+                platform_name = "Windows" if platform == "win" else "macOS"
+                caption = (
+                    f"🔥 Вышло обновление {product['name']}!\n\n"
+                    f"📦 Приложение ({platform_name}) версия: {version}"
+                )
                 await callback.bot.send_document(user_id, data['file_id'], caption=caption)
             else:
                 caption = f"🔥 Обновление базы данных {product['name']}!\n\n🗄️ База данных версия: {version}"
                 await callback.bot.send_document(user_id, data['file_id'], caption=caption)
             
             # Если это ScoutScope и есть оба файла, отправим второй
-            if data['product_key'] == 'scout_scope':
+            if data['product_key'] in ('scout_scope', 'crm'):
                 if file_type == 'app' and product['db_file_id']:
                     try:
                         db_caption = f"🗄️ База данных версия: {product['db_version']}"
@@ -317,6 +356,12 @@ async def admin_broadcast_file(callback: CallbackQuery, state: FSMContext):
                     try:
                         app_caption = f"📦 Приложение версия: {product['version']}"
                         await callback.bot.send_document(user_id, product['file_id'], caption=app_caption)
+                    except:
+                        pass
+                elif file_type == 'db' and product['file_id_mac']:
+                    try:
+                        app_caption = f"📦 Приложение версия: {product['version_mac']}"
+                        await callback.bot.send_document(user_id, product['file_id_mac'], caption=app_caption)
                     except:
                         pass
             
@@ -338,10 +383,14 @@ async def admin_save_only(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     version = data['version']
     file_type = data.get('file_type', 'app')
+    platform = data.get('platform', 'win')
     
     # Сохраняем в БД
     if file_type == 'app':
-        await db.update_product_file(data['product_key'], data['file_id'], version)
+        if platform == 'mac':
+            await db.update_product_file_mac(data['product_key'], data['file_id'], version)
+        else:
+            await db.update_product_file(data['product_key'], data['file_id'], version)
         file_desc = "приложения"
     else:
         await db.update_product_db(data['product_key'], data['file_id'], version)
@@ -387,9 +436,11 @@ async def show_product(callback: CallbackQuery):
     
     text = f"📦 *{product['name']}*\n\n{product['description']}"
     
-    if product_key == 'scout_scope':
+    if product_key in ('scout_scope', 'crm'):
         if product['version']:
-            text += f"\n\n📦 Версия приложения: {product['version']}"
+            text += f"\n\n🪟 Windows версия: {product['version']}"
+        if product['version_mac']:
+            text += f"\n🍎 macOS версия: {product['version_mac']}"
         if product['db_version']:
             text += f"\n🗄️ Версия БД: {product['db_version']}"
     elif product['version']:
@@ -397,9 +448,11 @@ async def show_product(callback: CallbackQuery):
     
     markup = None
     if product_key == 'scout_scope':
-        markup = kb.scout_scope_menu(has_file=bool(product['file_id']))
+        has_demo = bool(product['file_id'] or product['file_id_mac'])
+        markup = kb.scout_scope_menu(has_file=has_demo)
     elif product_key == 'crm':
-        markup = kb.crm_menu()
+        has_demo = bool(product['file_id'] or product['file_id_mac'])
+        markup = kb.crm_menu(has_file=has_demo)
     elif product_key == 'cis_bot':
         markup = kb.cis_bot_menu()
     
@@ -451,16 +504,47 @@ async def show_product(callback: CallbackQuery):
     
     await callback.answer()
 
+@router.callback_query(F.data.startswith("demo_select_"))
+async def demo_select_platform(callback: CallbackQuery):
+    product_key = callback.data.split("_", 2)[2]
+    text = "Выберите ОС для демоверсии:"
+    markup = kb.demo_platform_menu(product_key)
+    if callback.message.photo:
+        await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="Markdown")
+    else:
+        await callback.message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
+    await callback.answer()
+
 @router.callback_query(F.data == "demo_scout_scope")
+async def demo_select_platform_legacy(callback: CallbackQuery):
+    product_key = "scout_scope"
+    text = "Выберите ОС для демоверсии:"
+    markup = kb.demo_platform_menu(product_key)
+    if callback.message.photo:
+        await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="Markdown")
+    else:
+        await callback.message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("demo_download_"))
 async def send_demo(callback: CallbackQuery):
-    product = await db.get_product('scout_scope')
-    if product and product['file_id']:
-        caption = f"📦 Демоверсия {product['name']}"
-        if product['version']:
-            caption += f"\nВерсия приложения: {product['version']}"
-        await callback.message.answer_document(product['file_id'], caption=caption)
+    payload = callback.data[len("demo_download_"):]
+    product_key, platform = payload.rsplit("_", 1)
+    product = await db.get_product(product_key)
+    if not product:
+        await callback.answer("Продукт не найден", show_alert=True)
+        return
+
+    file_id = product['file_id'] if platform == 'win' else product['file_id_mac']
+    version = product['version'] if platform == 'win' else product['version_mac']
+    platform_name = "Windows" if platform == "win" else "macOS"
+
+    if file_id:
+        caption = f"📦 Демоверсия {product['name']} ({platform_name})"
+        if version:
+            caption += f"\nВерсия приложения: {version}"
+        await callback.message.answer_document(file_id, caption=caption)
         
-        # Отправляем БД если есть
         if product['db_file_id']:
             db_caption = f"🗄️ База данных для {product['name']}"
             if product['db_version']:
@@ -469,7 +553,7 @@ async def send_demo(callback: CallbackQuery):
         
         await callback.answer()
     else:
-        await callback.answer("Файл временно недоступен", show_alert=True)
+        await callback.answer(f"Файл для {platform_name} временно недоступен", show_alert=True)
 
 @router.callback_query(F.data == "buy_scout_scope")
 async def show_scout_scope_plans(callback: CallbackQuery):

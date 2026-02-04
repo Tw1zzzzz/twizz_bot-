@@ -16,12 +16,21 @@ async def create_tables():
                 key TEXT PRIMARY KEY,
                 name TEXT,
                 file_id TEXT,
+                file_id_mac TEXT,
                 description TEXT,
                 version TEXT,
+                version_mac TEXT,
                 db_file_id TEXT,
                 db_version TEXT
             )
         ''')
+        # Migrate: add missing columns for macOS builds if DB existed before
+        async with db.execute('PRAGMA table_info(products)') as cursor:
+            columns = {row[1] for row in await cursor.fetchall()}
+        if 'file_id_mac' not in columns:
+            await db.execute('ALTER TABLE products ADD COLUMN file_id_mac TEXT')
+        if 'version_mac' not in columns:
+            await db.execute('ALTER TABLE products ADD COLUMN version_mac TEXT')
         # Insert default products if not exist
         scout_scope_desc = (
             '*Представь:* все данные об игроках - в одном клике.\n'
@@ -61,6 +70,11 @@ async def get_all_users():
 async def update_product_file(key, file_id, version):
     async with aiosqlite.connect(DB_NAME) as db:
         await db.execute('UPDATE products SET file_id = ?, version = ? WHERE key = ?', (file_id, version, key))
+        await db.commit()
+
+async def update_product_file_mac(key, file_id, version):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute('UPDATE products SET file_id_mac = ?, version_mac = ? WHERE key = ?', (file_id, version, key))
         await db.commit()
 
 async def update_product_db(key, db_file_id, db_version):
