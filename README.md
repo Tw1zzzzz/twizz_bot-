@@ -33,31 +33,31 @@ python3 -m venv venv
 
 1. Upload the project to `/opt/twizz_bot` (or any path you prefer).
 2. Create `.env` in that folder.
-3. Run:
+3. Run deploy:
 
 ```bash
 ./scripts/deploy.sh
 ```
 
-4. Copy the systemd unit from `deploy/scoutscope-bot.service` and adjust paths, user, and group.
-5. Enable and start:
+`deploy.sh` will:
+- pull the latest code from `origin` (default repo: `https://github.com/Tw1zzzzz/twizz_bot-`);
+- install/update dependencies in `venv`;
+- restart or start the bot automatically.
+
+4. Copy the systemd unit from `deploy/scoutscope-bot.service` and adjust paths, user, and group (optional but recommended for production).
+5. Enable service autostart (if using systemd):
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable scoutscope-bot
-sudo systemctl start scoutscope-bot
 ```
 
 ## Update
 
+Pull latest code and restart bot automatically:
+
 ```bash
 ./scripts/update.sh
-```
-
-Restart your service if needed:
-
-```bash
-sudo systemctl restart scoutscope-bot
 ```
 
 ## Security Notes
