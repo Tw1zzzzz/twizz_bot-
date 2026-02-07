@@ -1,4 +1,5 @@
 from aiogram import Router, F, Bot
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.types import Message, CallbackQuery, ContentType, FSInputFile
 from aiogram.fsm.context import FSMContext
@@ -9,6 +10,15 @@ import database as db
 from config import ADMIN_IDS
 
 router = Router()
+
+SCOUT_SCOPE_DEMO_INFO = (
+    "*Демоверсия* — это демонстрация продукта без полного функционала.\n\n"
+    "*Что доступно в ScoutScope Pro и недоступно в демоверсии:*\n"
+    "• Актуальные базы данных\n"
+    "• Просмотр возраста игроков\n"
+    "• Просмотр Faceit-профилей\n"
+    "• AI-ассистент для сравнения игроков"
+)
 
 SCOUT_SCOPE_PLANS = {
     "basic": {
@@ -39,6 +49,37 @@ class AdminStates(StatesGroup):
     waiting_for_broadcast_action = State()
     waiting_for_notification_text = State()
     waiting_for_notification_target = State()
+
+
+def get_demo_platform_text(product_key: str) -> str:
+    if product_key == "scout_scope":
+        return f"{SCOUT_SCOPE_DEMO_INFO}\n\nВыберите ОС для демоверсии:"
+    return "Выберите ОС для демоверсии:"
+
+
+async def show_demo_platform_message(callback: CallbackQuery, text: str, markup):
+    if not callback.message:
+        return
+
+    render_order = ["caption", "text"] if callback.message.photo else ["text", "caption"]
+    for render_type in render_order:
+        try:
+            if render_type == "caption":
+                await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="Markdown")
+            else:
+                await callback.message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
+            return
+        except TelegramBadRequest as err:
+            # Часто возникает при повторном нажатии той же кнопки.
+            if "message is not modified" in str(err).lower():
+                return
+        except Exception:
+            pass
+
+    try:
+        await callback.message.answer(text, reply_markup=markup, parse_mode="Markdown")
+    except Exception:
+        pass
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
@@ -507,42 +548,17 @@ async def show_product(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("demo_select_"))
 async def demo_select_platform(callback: CallbackQuery):
     product_key = callback.data.split("_", 2)[2]
-    if product_key == "scout_scope":
-        text = (
-            "*Демоверсия* — это демонстрация продукта без полного функционала.\n\n"
-            "*Что доступно в ScoutScope Pro и недоступно в демоверсии:*\n"
-            "• Актуальные базы данных\n"
-            "• Просмотр возраста игроков\n"
-            "• Просмотр Faceit-профилей\n"
-            "• AI-ассистент для сравнения игроков\n\n"
-            "Выберите ОС для демоверсии:"
-        )
-    else:
-        text = "Выберите ОС для демоверсии:"
+    text = get_demo_platform_text(product_key)
     markup = kb.demo_platform_menu(product_key)
-    if callback.message.photo:
-        await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="Markdown")
-    else:
-        await callback.message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
+    await show_demo_platform_message(callback, text, markup)
     await callback.answer()
 
 @router.callback_query(F.data == "demo_scout_scope")
 async def demo_select_platform_legacy(callback: CallbackQuery):
     product_key = "scout_scope"
-    text = (
-        "*Демоверсия* — это демонстрация продукта без полного функционала.\n\n"
-        "*Что доступно в ScoutScope Pro и недоступно в демоверсии:*\n"
-        "• Актуальные базы данных\n"
-        "• Просмотр возраста игроков\n"
-        "• Просмотр Faceit-профилей\n"
-        "• AI-ассистент для сравнения игроков\n\n"
-        "Выберите ОС для демоверсии:"
-    )
+    text = get_demo_platform_text(product_key)
     markup = kb.demo_platform_menu(product_key)
-    if callback.message.photo:
-        await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="Markdown")
-    else:
-        await callback.message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
+    await show_demo_platform_message(callback, text, markup)
     await callback.answer()
 
 @router.callback_query(F.data.startswith("demo_download_"))
