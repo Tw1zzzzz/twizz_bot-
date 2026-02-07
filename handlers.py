@@ -60,6 +60,9 @@ class AdminStates(StatesGroup):
     waiting_for_notification_text = State()
     waiting_for_notification_target = State()
 
+class SupportStates(StatesGroup):
+    waiting_for_request = State()
+
 
 def get_demo_platform_text(product_key: str) -> str:
     if product_key == "scout_scope":
@@ -690,7 +693,52 @@ async def show_social_networks(message: Message):
         parse_mode="Markdown"
     )
 
+# --- Support ---
+@router.message(F.text == "Поддержка 👩‍💻")
+async def support_start(message: Message, state: FSMContext):
+    await state.set_state(SupportStates.waiting_for_request)
+    await message.answer(
+        "Опишите ваш вопрос одним сообщением.\n\n"
+        "Например: что не работает, на каком этапе и какая ошибка появляется.\n"
+        "Чтобы отменить, отправьте: Отмена"
+    )
+
+@router.message(SupportStates.waiting_for_request, F.text)
+async def support_submit(message: Message, state: FSMContext, bot: Bot):
+    request_text = message.text.strip()
+    if not request_text:
+        await message.answer("Напишите, пожалуйста, текст запроса или отправьте «Отмена».")
+        return
+    if request_text.lower() == "отмена":
+        await state.clear()
+        await message.answer("Запрос в поддержку отменен.")
+        return
+
+    user = message.from_user
+    username = f"@{user.username}" if user.username else "не указан"
+    admin_message = (
+        "🆘 Новый запрос в поддержку\n\n"
+        f"Пользователь: {user.full_name}\n"
+        f"Username: {username}\n"
+        f"ID: {user.id}\n\n"
+        "Сообщение:\n"
+        f"{request_text}"
+    )
+
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(admin_id, admin_message)
+        except Exception:
+            pass
+
+    await state.clear()
+    await message.answer("Спасибо! Поддержка уже спешит на помощь 🚀")
+
+@router.message(SupportStates.waiting_for_request)
+async def support_submit_non_text(message: Message):
+    await message.answer("Пожалуйста, отправьте запрос текстом или напишите «Отмена».")
+
 # --- Placeholder Handlers ---
-@router.message(F.text.in_({"Отзывы 💡", "Поддержка 👩‍💻"}))
+@router.message(F.text == "Отзывы 💡")
 async def placeholder(message: Message):
     await message.answer("Этот раздел находится в разработке 🛠️")
