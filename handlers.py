@@ -19,6 +19,17 @@ SCOUT_SCOPE_DEMO_INFO = (
     "• AI-ассистент для сравнения игроков"
 )
 
+SCOUT_SCOPE_INSTRUCTION_TEXT = (
+    "📘 *Как пользоваться ScoutScope*\n\n"
+    "1. Скачайте и установите приложение ScoutScope.\n"
+    "2. Выберите базу данных для работы:\n"
+    "• Можно скачать и использовать нашу актуальную базу данных в боте.\n"
+    "• Также можно использовать собственную базу данных.\n"
+    "3. Запустите ScoutScope и загрузите выбранную базу данных.\n"
+    "4. Используйте поиск и карточки игроков для анализа.\n\n"
+    "Если потребуется помощь с настройкой, напишите в поддержку 👩‍💻"
+)
+
 SCOUT_SCOPE_PLANS = {
     "basic": {
         "title": "Базовый",
@@ -542,6 +553,23 @@ async def demo_select_platform(callback: CallbackQuery):
     text = get_demo_platform_text(product_key)
     markup = kb.demo_platform_menu(product_key)
     await show_demo_platform_message(callback, text, markup)
+    await callback.answer()
+
+@router.callback_query(F.data == "scout_scope_instruction")
+async def show_scout_scope_instruction(callback: CallbackQuery):
+    markup = kb.scout_scope_instruction_menu()
+    if callback.message.photo:
+        await callback.message.edit_caption(
+            caption=SCOUT_SCOPE_INSTRUCTION_TEXT,
+            reply_markup=markup,
+            parse_mode="Markdown",
+        )
+    else:
+        await callback.message.edit_text(
+            SCOUT_SCOPE_INSTRUCTION_TEXT,
+            reply_markup=markup,
+            parse_mode="Markdown",
+        )
     await callback.answer()
 
 @router.callback_query(F.data == "demo_scout_scope")

@@ -20,8 +20,15 @@ def scout_scope_menu(has_file=False):
     builder = InlineKeyboardBuilder()
     if has_file:
         builder.button(text="Демоверсия", callback_data="demo_select_scout_scope")
+    builder.button(text="Инструкция 📘", callback_data="scout_scope_instruction")
     builder.button(text="Pro Версия 🌟", callback_data="buy_scout_scope")
     builder.button(text="Назад 🔙", callback_data="back_to_shop")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def scout_scope_instruction_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Назад к ScoutScope 🔙", callback_data="prod_scout_scope")
     builder.adjust(1)
     return builder.as_markup()
 
