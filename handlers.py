@@ -507,7 +507,18 @@ async def show_product(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("demo_select_"))
 async def demo_select_platform(callback: CallbackQuery):
     product_key = callback.data.split("_", 2)[2]
-    text = "Выберите ОС для демоверсии:"
+    if product_key == "scout_scope":
+        text = (
+            "*Демоверсия* — это демонстрация продукта без полного функционала.\n\n"
+            "*Что доступно в ScoutScope Pro и недоступно в демоверсии:*\n"
+            "• Актуальные базы данных\n"
+            "• Просмотр возраста игроков\n"
+            "• Просмотр Faceit-профилей\n"
+            "• AI-ассистент для сравнения игроков\n\n"
+            "Выберите ОС для демоверсии:"
+        )
+    else:
+        text = "Выберите ОС для демоверсии:"
     markup = kb.demo_platform_menu(product_key)
     if callback.message.photo:
         await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="Markdown")
@@ -518,7 +529,15 @@ async def demo_select_platform(callback: CallbackQuery):
 @router.callback_query(F.data == "demo_scout_scope")
 async def demo_select_platform_legacy(callback: CallbackQuery):
     product_key = "scout_scope"
-    text = "Выберите ОС для демоверсии:"
+    text = (
+        "*Демоверсия* — это демонстрация продукта без полного функционала.\n\n"
+        "*Что доступно в ScoutScope Pro и недоступно в демоверсии:*\n"
+        "• Актуальные базы данных\n"
+        "• Просмотр возраста игроков\n"
+        "• Просмотр Faceit-профилей\n"
+        "• AI-ассистент для сравнения игроков\n\n"
+        "Выберите ОС для демоверсии:"
+    )
     markup = kb.demo_platform_menu(product_key)
     if callback.message.photo:
         await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="Markdown")
