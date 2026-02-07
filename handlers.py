@@ -1,5 +1,4 @@
 from aiogram import Router, F, Bot
-from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.types import Message, CallbackQuery, ContentType, FSInputFile
 from aiogram.fsm.context import FSMContext
@@ -61,20 +60,12 @@ async def show_demo_platform_message(callback: CallbackQuery, text: str, markup)
     if not callback.message:
         return
 
-    render_order = ["caption", "text"] if callback.message.photo else ["text", "caption"]
-    for render_type in render_order:
-        try:
-            if render_type == "caption":
-                await callback.message.edit_caption(caption=text, reply_markup=markup, parse_mode="Markdown")
-            else:
-                await callback.message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
-            return
-        except TelegramBadRequest as err:
-            # Часто возникает при повторном нажатии той же кнопки.
-            if "message is not modified" in str(err).lower():
-                return
-        except Exception:
-            pass
+    try:
+        # Для стабильного показа экрана демоверсии отправляем отдельное сообщение,
+        # а предыдущее (если возможно) убираем.
+        await callback.message.delete()
+    except Exception:
+        pass
 
     try:
         await callback.message.answer(text, reply_markup=markup, parse_mode="Markdown")
