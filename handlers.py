@@ -86,6 +86,70 @@ async def show_demo_platform_message(callback: CallbackQuery, text: str, markup)
     except Exception:
         pass
 
+
+def _escape_markdown(value: str) -> str:
+    return (
+        value.replace("\\", "\\\\")
+        .replace("_", "\\_")
+        .replace("*", "\\*")
+        .replace("`", "\\`")
+        .replace("[", "\\[")
+    )
+
+
+def _build_product_text(product_key: str, product) -> str:
+    text = f"📦 *{product['name']}*\n\n{product['description']}"
+
+    if product_key in ("scout_scope", "crm"):
+        if product["version"]:
+            text += f"\n\n🪟 Windows версия: {_escape_markdown(product['version'])}"
+        if product["version_mac"]:
+            text += f"\n🍎 macOS версия: {_escape_markdown(product['version_mac'])}"
+        if product["db_version"]:
+            text += f"\n🗄️ Версия БД: {_escape_markdown(product['db_version'])}"
+    elif product["version"]:
+        text += f"\n\nВерсия: {_escape_markdown(product['version'])}"
+
+    return text
+
+
+async def _render_product_view(callback: CallbackQuery, text: str, markup, photo_path: str | None = None):
+    if not callback.message:
+        return
+
+    if photo_path:
+        if callback.message.photo:
+            try:
+                await callback.message.edit_caption(
+                    caption=text,
+                    reply_markup=markup,
+                    parse_mode="Markdown",
+                )
+            except Exception:
+                await callback.message.edit_caption(caption=text, reply_markup=markup)
+            return
+
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+
+        try:
+            await callback.message.answer_photo(
+                photo=FSInputFile(photo_path),
+                caption=text,
+                reply_markup=markup,
+                parse_mode="Markdown",
+            )
+        except Exception:
+            await callback.message.answer(text, reply_markup=markup)
+        return
+
+    try:
+        await callback.message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
+    except Exception:
+        await callback.message.edit_text(text, reply_markup=markup)
+
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     await db.add_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
@@ -475,80 +539,48 @@ async def back_to_shop(callback: CallbackQuery):
         await callback.message.edit_text("Выберите продукт:", reply_markup=kb.products_menu())
     await callback.answer()
 
+
+async def _show_product(callback: CallbackQuery, product_key: str) -> bool:
+    product = await db.get_product(product_key)
+    if not product:
+        return False
+
+    text = _build_product_text(product_key, product)
+    markup = None
+    photo_path = None
+
+    if product_key == "scout_scope":
+        has_demo = bool(product["file_id"] or product["file_id_mac"])
+        markup = kb.scout_scope_menu(has_file=has_demo)
+        photo_path = "scoutscope_logo.png"
+    elif product_key == "crm":
+        has_demo = bool(product["file_id"] or product["file_id_mac"])
+        markup = kb.crm_menu(has_file=has_demo)
+        photo_path = "Performance.jpg"
+    elif product_key == "cis_bot":
+        markup = kb.cis_bot_menu()
+
+    await _render_product_view(callback, text, markup, photo_path)
+    return True
+
+
+@router.callback_query(F.data == "back_to_scout_scope")
+async def back_to_scout_scope(callback: CallbackQuery):
+    is_shown = await _show_product(callback, "scout_scope")
+    if is_shown:
+        await callback.answer()
+    else:
+        await callback.answer("Продукт не найден", show_alert=True)
+
+
 @router.callback_query(F.data.startswith("prod_"))
 async def show_product(callback: CallbackQuery):
     product_key = callback.data.split("_", 1)[1]
-    product = await db.get_product(product_key)
-    
-    text = f"📦 *{product['name']}*\n\n{product['description']}"
-    
-    if product_key in ('scout_scope', 'crm'):
-        if product['version']:
-            text += f"\n\n🪟 Windows версия: {product['version']}"
-        if product['version_mac']:
-            text += f"\n🍎 macOS версия: {product['version_mac']}"
-        if product['db_version']:
-            text += f"\n🗄️ Версия БД: {product['db_version']}"
-    elif product['version']:
-        text += f"\n\nВерсия: {product['version']}"
-    
-    markup = None
-    if product_key == 'scout_scope':
-        has_demo = bool(product['file_id'] or product['file_id_mac'])
-        markup = kb.scout_scope_menu(has_file=has_demo)
-    elif product_key == 'crm':
-        has_demo = bool(product['file_id'] or product['file_id_mac'])
-        markup = kb.crm_menu(has_file=has_demo)
-    elif product_key == 'cis_bot':
-        markup = kb.cis_bot_menu()
-    
-    # Для ScoutScope отправляем с логотипом
-    if product_key == 'scout_scope':
-        if callback.message.photo:
-            await callback.message.edit_caption(
-                caption=text,
-                reply_markup=markup,
-                parse_mode="Markdown"
-            )
-        else:
-            try:
-                # Удаляем предыдущее сообщение
-                await callback.message.delete()
-                # Отправляем новое с картинкой
-                photo = FSInputFile('scoutscope_logo.png')
-                await callback.message.answer_photo(
-                    photo=photo,
-                    caption=text,
-                    reply_markup=markup,
-                    parse_mode="Markdown"
-                )
-            except:
-                # Если не получилось, отправляем текстом
-                await callback.message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
-    # Для PerformanceCoach CRM отправляем с изображением
-    elif product_key == 'crm':
-        if callback.message.photo:
-            await callback.message.edit_caption(
-                caption=text,
-                reply_markup=markup,
-                parse_mode="Markdown"
-            )
-        else:
-            try:
-                await callback.message.delete()
-                photo = FSInputFile('Performance.jpg')
-                await callback.message.answer_photo(
-                    photo=photo,
-                    caption=text,
-                    reply_markup=markup,
-                    parse_mode="Markdown"
-                )
-            except:
-                await callback.message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
+    is_shown = await _show_product(callback, product_key)
+    if is_shown:
+        await callback.answer()
     else:
-        await callback.message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
-    
-    await callback.answer()
+        await callback.answer("Продукт не найден", show_alert=True)
 
 @router.callback_query(F.data.startswith("demo_select_"))
 async def demo_select_platform(callback: CallbackQuery):

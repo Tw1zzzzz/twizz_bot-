@@ -28,7 +28,7 @@ def scout_scope_menu(has_file=False):
 
 def scout_scope_instruction_menu():
     builder = InlineKeyboardBuilder()
-    builder.button(text="Назад к ScoutScope 🔙", callback_data="prod_scout_scope")
+    builder.button(text="Назад к ScoutScope 🔙", callback_data="back_to_scout_scope")
     builder.adjust(1)
     return builder.as_markup()
 
@@ -37,7 +37,7 @@ def scout_scope_pro_plans_menu():
     builder.button(text="Базовый — 1500 руб/мес", callback_data="plan_scout_scope_basic")
     builder.button(text="Стандарт — 2000 руб/мес", callback_data="plan_scout_scope_standard")
     builder.button(text="Премиум — 3000руб/3 мес", callback_data="plan_scout_scope_3m")
-    builder.button(text="Назад 🔙", callback_data="prod_scout_scope")
+    builder.button(text="Назад 🔙", callback_data="back_to_scout_scope")
     builder.adjust(1)
     return builder.as_markup()
 
@@ -75,7 +75,8 @@ def demo_platform_menu(product_key: str):
     builder = InlineKeyboardBuilder()
     builder.button(text="Windows", callback_data=f"demo_download_{product_key}_win")
     builder.button(text="macOS", callback_data=f"demo_download_{product_key}_mac")
-    builder.button(text="Назад 🔙", callback_data=f"prod_{product_key}")
+    back_callback = "back_to_scout_scope" if product_key == "scout_scope" else f"prod_{product_key}"
+    builder.button(text="Назад 🔙", callback_data=back_callback)
     builder.adjust(2)
     return builder.as_markup()
 
