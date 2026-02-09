@@ -34,6 +34,7 @@ def scout_scope_instruction_menu():
 
 def scout_scope_pro_plans_menu():
     builder = InlineKeyboardBuilder()
+    builder.button(text="Минимум — 1500 рублей", callback_data="plan_scout_scope_minimum")
     builder.button(text="Базовый — 3000 рублей", callback_data="plan_scout_scope_basic")
     builder.button(text="Стандарт — 5000 рублей", callback_data="plan_scout_scope_standard")
     builder.button(text="Премиум — 7000 рублей", callback_data="plan_scout_scope_3m")
