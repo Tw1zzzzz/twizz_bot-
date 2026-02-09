@@ -19,8 +19,8 @@ def products_menu():
 def scout_scope_menu(has_file=False):
     builder = InlineKeyboardBuilder()
     if has_file:
-        builder.button(text="Демоверсия", callback_data="demo_select_scout_scope")
-    builder.button(text="Pro Версия 🌟", callback_data="buy_scout_scope")
+        builder.button(text="Демоверсия", callback_data="demo_select_scout_scope", style="success")
+    builder.button(text="Pro Версия 🌟", callback_data="buy_scout_scope", style="primary")
     builder.button(text="Инструкция 📘", callback_data="scout_scope_instruction")
     builder.button(text="Назад 🔙", callback_data="back_to_shop")
     builder.adjust(1)
@@ -34,10 +34,10 @@ def scout_scope_instruction_menu():
 
 def scout_scope_pro_plans_menu():
     builder = InlineKeyboardBuilder()
-    builder.button(text="Минимум — 1500 рублей", callback_data="plan_scout_scope_minimum")
-    builder.button(text="Базовый — 3000 рублей", callback_data="plan_scout_scope_basic")
-    builder.button(text="Стандарт — 5000 рублей", callback_data="plan_scout_scope_standard")
-    builder.button(text="Премиум — 7000 рублей", callback_data="plan_scout_scope_3m")
+    builder.button(text="Минимум — 1500 рублей", callback_data="plan_scout_scope_minimum", style="success")
+    builder.button(text="Базовый — 3000 рублей", callback_data="plan_scout_scope_basic", style="primary")
+    builder.button(text="Стандарт — 5000 рублей", callback_data="plan_scout_scope_standard", style="primary")
+    builder.button(text="Премиум — 7000 рублей", callback_data="plan_scout_scope_3m", style="danger")
     builder.button(text="Назад 🔙", callback_data="back_to_scout_scope")
     builder.adjust(1)
     return builder.as_markup()
@@ -45,8 +45,8 @@ def scout_scope_pro_plans_menu():
 def crm_menu(has_file=False):
     builder = InlineKeyboardBuilder()
     if has_file:
-        builder.button(text="Демоверсия", callback_data="demo_select_crm")
-    builder.button(text="Pro Версия 🌟", callback_data="buy_crm")
+        builder.button(text="Демоверсия", callback_data="demo_select_crm", style="success")
+    builder.button(text="Pro Версия 🌟", callback_data="buy_crm", style="primary")
     builder.button(text="Назад 🔙", callback_data="back_to_shop")
     builder.adjust(1)
     return builder.as_markup()
