@@ -389,6 +389,7 @@ async def admin_select_file_type(callback: CallbackQuery, state: FSMContext):
         await state.set_state(AdminStates.waiting_for_platform)
     else:
         await callback.message.answer("Введите версию базы данных (например, 2.1.0):")
+        await state.set_state(AdminStates.waiting_for_version)
     await callback.answer()
 
 @router.callback_query(AdminStates.waiting_for_platform, F.data.startswith("platform_"))
