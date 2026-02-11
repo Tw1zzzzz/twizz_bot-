@@ -63,6 +63,8 @@ class AdminStates(StatesGroup):
     waiting_for_platform = State()
     waiting_for_version = State()
     waiting_for_broadcast_action = State()
+    waiting_for_delete_product = State()
+    waiting_for_delete_target = State()
     waiting_for_notification_text = State()
     waiting_for_notification_target = State()
 
@@ -117,6 +119,46 @@ def _build_product_text(product_key: str, product) -> str:
         text += f"\n\nВерсия: {_escape_markdown(product['version'])}"
 
     return text
+
+
+def _build_admin_delete_product_text(product_key: str, product) -> tuple[str, bool]:
+    has_any = False
+    lines = [
+        f"🗑️ *Удаление файлов: {product['name']}*",
+        "",
+        "Текущие загрузки:",
+    ]
+
+    if product_key in ("scout_scope", "crm"):
+        if product["file_id"] or product["version"]:
+            has_any = True
+            version = product["version"] or "без версии"
+            lines.append(f"• Windows приложение: {_escape_markdown(version)}")
+        else:
+            lines.append("• Windows приложение: не загружено")
+
+        if product["file_id_mac"] or product["version_mac"]:
+            has_any = True
+            version = product["version_mac"] or "без версии"
+            lines.append(f"• macOS приложение: {_escape_markdown(version)}")
+        else:
+            lines.append("• macOS приложение: не загружено")
+
+        if product["db_file_id"] or product["db_version"]:
+            has_any = True
+            version = product["db_version"] or "без версии"
+            lines.append(f"• База данных: {_escape_markdown(version)}")
+        else:
+            lines.append("• База данных: не загружена")
+    else:
+        if product["file_id"] or product["version"]:
+            has_any = True
+            version = product["version"] or "без версии"
+            lines.append(f"• Приложение: {_escape_markdown(version)}")
+        else:
+            lines.append("• Приложение: не загружено")
+
+    return "\n".join(lines), has_any
 
 
 async def _render_product_view(callback: CallbackQuery, text: str, markup, photo_path: str | None = None):
@@ -197,7 +239,8 @@ async def cmd_admin(message: Message):
 # --- Admin Panel ---
 
 @router.callback_query(F.data == "admin_back")
-async def admin_back(callback: CallbackQuery):
+async def admin_back(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
     await callback.message.edit_text(
         "🔐 *Админ-панель*\n\n"
         "Выберите действие:",
@@ -208,11 +251,24 @@ async def admin_back(callback: CallbackQuery):
 
 @router.callback_query(F.data == "admin_upload")
 async def admin_upload_start(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
     await callback.message.edit_text(
         "📤 *Загрузка файлов*\n\n"
         "Отправьте файл (приложение или базу данных):",
         parse_mode="Markdown"
     )
+    await callback.answer()
+
+@router.callback_query(F.data == "admin_delete_upload")
+async def admin_delete_upload_start(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.edit_text(
+        "🗑️ *Удаление загруженных файлов*\n\n"
+        "Выберите продукт:",
+        reply_markup=kb.admin_delete_products_menu(),
+        parse_mode="Markdown"
+    )
+    await state.set_state(AdminStates.waiting_for_delete_product)
     await callback.answer()
 
 @router.callback_query(F.data == "admin_view_products")
@@ -390,6 +446,111 @@ async def admin_select_file_type(callback: CallbackQuery, state: FSMContext):
     else:
         await callback.message.answer("Введите версию базы данных (например, 2.1.0):")
         await state.set_state(AdminStates.waiting_for_version)
+    await callback.answer()
+
+@router.callback_query(AdminStates.waiting_for_delete_product, F.data.startswith("admin_del_prod_"))
+async def admin_delete_select_product(callback: CallbackQuery, state: FSMContext):
+    product_key = callback.data.split("admin_del_prod_", 1)[1]
+    product = await db.get_product(product_key)
+    if not product:
+        await callback.answer("Продукт не найден", show_alert=True)
+        return
+
+    text, has_any = _build_admin_delete_product_text(product_key, product)
+    if not has_any:
+        await callback.message.edit_text(
+            f"{text}\n\nУ этого продукта пока нет загруженных файлов.",
+            reply_markup=kb.admin_delete_products_menu(),
+            parse_mode="Markdown",
+        )
+        await state.set_state(AdminStates.waiting_for_delete_product)
+        await callback.answer()
+        return
+
+    await state.update_data(delete_product_key=product_key)
+    await callback.message.edit_text(
+        f"{text}\n\nВыберите, что удалить:",
+        reply_markup=kb.admin_delete_targets_menu(product_key, product),
+        parse_mode="Markdown",
+    )
+    await state.set_state(AdminStates.waiting_for_delete_target)
+    await callback.answer()
+
+@router.callback_query(AdminStates.waiting_for_delete_target, F.data == "admin_delete_back_products")
+async def admin_delete_back_products(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(
+        "🗑️ *Удаление загруженных файлов*\n\n"
+        "Выберите продукт:",
+        reply_markup=kb.admin_delete_products_menu(),
+        parse_mode="Markdown",
+    )
+    await state.set_state(AdminStates.waiting_for_delete_product)
+    await callback.answer()
+
+@router.callback_query(
+    StateFilter(AdminStates.waiting_for_delete_product, AdminStates.waiting_for_delete_target),
+    F.data == "admin_delete_cancel",
+)
+async def admin_delete_cancel(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(
+        "❌ Удаление отменено",
+        reply_markup=kb.admin_menu(),
+    )
+    await state.clear()
+    await callback.answer()
+
+@router.callback_query(AdminStates.waiting_for_delete_target, F.data.startswith("admin_del_target_"))
+async def admin_delete_target(callback: CallbackQuery, state: FSMContext):
+    target = callback.data.split("admin_del_target_", 1)[1]
+    data = await state.get_data()
+    product_key = data.get("delete_product_key")
+    if not product_key:
+        await callback.message.edit_text(
+            "Не удалось определить продукт. Начните удаление заново.",
+            reply_markup=kb.admin_menu(),
+        )
+        await state.clear()
+        await callback.answer()
+        return
+
+    if target == "app_win":
+        await db.clear_product_file(product_key)
+        deleted_label = "приложение Windows"
+    elif target == "app_mac":
+        await db.clear_product_file_mac(product_key)
+        deleted_label = "приложение macOS"
+    elif target == "db":
+        await db.clear_product_db(product_key)
+        deleted_label = "база данных"
+    else:
+        await callback.answer("Неизвестный тип удаления", show_alert=True)
+        return
+
+    product = await db.get_product(product_key)
+    if not product:
+        await callback.message.edit_text(
+            "Продукт не найден. Вернитесь в админ-панель.",
+            reply_markup=kb.admin_menu(),
+        )
+        await state.clear()
+        await callback.answer()
+        return
+
+    text, has_any = _build_admin_delete_product_text(product_key, product)
+    if has_any:
+        await callback.message.edit_text(
+            f"✅ Удалено: {deleted_label}\n\n{text}\n\nМожно удалить еще файлы.",
+            reply_markup=kb.admin_delete_targets_menu(product_key, product),
+            parse_mode="Markdown",
+        )
+    else:
+        await callback.message.edit_text(
+            f"✅ Удалено: {deleted_label}\n\n{text}\n\nУ продукта больше нет загруженных файлов.",
+            reply_markup=kb.admin_delete_products_menu(),
+            parse_mode="Markdown",
+        )
+        await state.set_state(AdminStates.waiting_for_delete_product)
+
     await callback.answer()
 
 @router.callback_query(AdminStates.waiting_for_platform, F.data.startswith("platform_"))

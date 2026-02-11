@@ -84,9 +84,38 @@ def demo_platform_menu(product_key: str):
 def admin_menu():
     builder = InlineKeyboardBuilder()
     builder.button(text="📦 Загрузить файлы", callback_data="admin_upload")
+    builder.button(text="🗑️ Удалить загруженное", callback_data="admin_delete_upload")
     builder.button(text="📊 Просмотр продуктов", callback_data="admin_view_products")
     builder.button(text="📢 Отправить уведомление", callback_data="admin_send_notification")
     builder.button(text="📈 Статистика", callback_data="admin_stats")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def admin_delete_products_menu():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="ScoutScope", callback_data="admin_del_prod_scout_scope")
+    builder.button(text="PerformanceCoach CRM", callback_data="admin_del_prod_crm")
+    builder.button(text="CIS FINDER BOT", callback_data="admin_del_prod_cis_bot")
+    builder.button(text="🔙 Назад", callback_data="admin_back")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def admin_delete_targets_menu(product_key: str, product):
+    builder = InlineKeyboardBuilder()
+
+    if product_key in ("scout_scope", "crm"):
+        if product["file_id"] or product["version"]:
+            builder.button(text="🗑️ Приложение Windows", callback_data="admin_del_target_app_win")
+        if product["file_id_mac"] or product["version_mac"]:
+            builder.button(text="🗑️ Приложение macOS", callback_data="admin_del_target_app_mac")
+        if product["db_file_id"] or product["db_version"]:
+            builder.button(text="🗑️ База данных", callback_data="admin_del_target_db")
+    else:
+        if product["file_id"] or product["version"]:
+            builder.button(text="🗑️ Приложение", callback_data="admin_del_target_app_win")
+
+    builder.button(text="🔙 К продуктам", callback_data="admin_delete_back_products")
+    builder.button(text="❌ Отмена", callback_data="admin_delete_cancel")
     builder.adjust(1)
     return builder.as_markup()
 

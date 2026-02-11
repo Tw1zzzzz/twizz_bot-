@@ -82,6 +82,21 @@ async def update_product_db(key, db_file_id, db_version):
         await db.execute('UPDATE products SET db_file_id = ?, db_version = ? WHERE key = ?', (db_file_id, db_version, key))
         await db.commit()
 
+async def clear_product_file(key):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute('UPDATE products SET file_id = NULL, version = NULL WHERE key = ?', (key,))
+        await db.commit()
+
+async def clear_product_file_mac(key):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute('UPDATE products SET file_id_mac = NULL, version_mac = NULL WHERE key = ?', (key,))
+        await db.commit()
+
+async def clear_product_db(key):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute('UPDATE products SET db_file_id = NULL, db_version = NULL WHERE key = ?', (key,))
+        await db.commit()
+
 async def get_product(key):
     async with aiosqlite.connect(DB_NAME) as db:
         db.row_factory = aiosqlite.Row
