@@ -91,19 +91,21 @@ class ScoutScopeNavigationTests(unittest.IsolatedAsyncioTestCase):
 
         callback.answer.assert_awaited_once_with("Продукт не найден", show_alert=True)
 
-    def test_build_product_text_escapes_markdown_in_versions(self):
+    def test_build_product_text_uses_html_and_premium_platform_emojis(self):
         product = {
-            "name": "ScoutScope",
-            "description": "desc",
+            "name": "ScoutScope <Pro>",
+            "description": "desc & details",
             "version": "1.0.0_beta",
             "version_mac": "2.0*mac",
-            "db_version": "db`3",
+            "db_version": "db<3",
         }
 
         text = handlers._build_product_text("scout_scope", product)
-        self.assertIn("1.0.0\\_beta", text)
-        self.assertIn("2.0\\*mac", text)
-        self.assertIn("db\\`3", text)
+        self.assertIn("📦 <b>ScoutScope &lt;Pro&gt;</b>", text)
+        self.assertIn("desc &amp; details", text)
+        self.assertIn('<tg-emoji emoji-id="5936226607931854504"></tg-emoji> Windows версия: 1.0.0_beta', text)
+        self.assertIn('<tg-emoji emoji-id="5352762486250545420"></tg-emoji> macOS версия: 2.0*mac', text)
+        self.assertIn("🗄️ Версия БД: db&lt;3", text)
 
 
 if __name__ == "__main__":

@@ -43,18 +43,18 @@ class KeyboardTests(unittest.TestCase):
         markup = keyboards.demo_platform_menu("crm")
         buttons = inline_buttons(markup)
 
-        self.assertEqual(buttons[0].text, keyboards.WINDOWS_PLATFORM_LABEL)
-        self.assertEqual(buttons[1].text, keyboards.MACOS_PLATFORM_LABEL)
+        self.assertEqual(buttons[0].text, "Windows")
+        self.assertEqual(buttons[1].text, "macOS")
         self.assertEqual(buttons[0].callback_data, "demo_download_crm_win")
         self.assertEqual(buttons[1].callback_data, "demo_download_crm_mac")
         self.assertEqual(buttons[2].callback_data, "prod_crm")
 
-    def test_platform_menu_uses_premium_platform_labels(self):
+    def test_platform_menu_uses_plain_platform_labels(self):
         markup = keyboards.platform_menu()
         buttons = inline_buttons(markup)
 
-        self.assertEqual(buttons[0].text, keyboards.WINDOWS_PLATFORM_LABEL)
-        self.assertEqual(buttons[1].text, keyboards.MACOS_PLATFORM_LABEL)
+        self.assertEqual(buttons[0].text, "Windows")
+        self.assertEqual(buttons[1].text, "macOS")
         self.assertEqual(buttons[0].callback_data, "platform_win")
         self.assertEqual(buttons[1].callback_data, "platform_mac")
 
