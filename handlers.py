@@ -72,6 +72,37 @@ class SupportStates(StatesGroup):
     waiting_for_request = State()
 
 
+def _is_admin_user(user_id: int | None) -> bool:
+    return user_id is not None and user_id in ADMIN_IDS
+
+
+async def _ensure_admin_callback(callback: CallbackQuery) -> bool:
+    user = callback.from_user
+    if user and _is_admin_user(user.id):
+        return True
+
+    try:
+        await callback.answer("Доступ только для администраторов", show_alert=True)
+    except Exception:
+        pass
+    return False
+
+
+async def _ensure_admin_message(message: Message, state: FSMContext | None = None) -> bool:
+    user = message.from_user
+    if user and _is_admin_user(user.id):
+        return True
+
+    if state is not None:
+        try:
+            await state.clear()
+        except Exception:
+            pass
+
+    await message.answer("Доступ только для администраторов")
+    return False
+
+
 def get_demo_platform_text(product_key: str) -> str:
     if product_key == "scout_scope":
         return f"{SCOUT_SCOPE_DEMO_INFO}\n\nВыберите ОС для демоверсии:"
@@ -240,6 +271,9 @@ async def cmd_admin(message: Message):
 
 @router.callback_query(F.data == "admin_back")
 async def admin_back(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     await state.clear()
     await callback.message.edit_text(
         "🔐 *Админ-панель*\n\n"
@@ -251,6 +285,9 @@ async def admin_back(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "admin_upload")
 async def admin_upload_start(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     await state.clear()
     await callback.message.edit_text(
         "📤 *Загрузка файлов*\n\n"
@@ -261,6 +298,9 @@ async def admin_upload_start(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "admin_delete_upload")
 async def admin_delete_upload_start(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     await state.clear()
     await callback.message.edit_text(
         "🗑️ *Удаление загруженных файлов*\n\n"
@@ -273,6 +313,9 @@ async def admin_delete_upload_start(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "admin_view_products")
 async def admin_view_products(callback: CallbackQuery):
+    if not await _ensure_admin_callback(callback):
+        return
+
     products = await db.get_all_products()
     
     text = "📊 *Текущие продукты:*\n\n"
@@ -305,6 +348,9 @@ async def admin_view_products(callback: CallbackQuery):
 
 @router.callback_query(F.data == "admin_send_notification")
 async def admin_send_notification_start(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     await callback.message.edit_text(
         "📢 *Создание уведомления*\n\n"
         "Введите текст уведомления:",
@@ -315,6 +361,9 @@ async def admin_send_notification_start(callback: CallbackQuery, state: FSMConte
 
 @router.message(AdminStates.waiting_for_notification_text)
 async def admin_notification_text_received(message: Message, state: FSMContext):
+    if not await _ensure_admin_message(message, state):
+        return
+
     await state.update_data(notification_text=message.text)
     await message.answer(
         "📢 *Кому отправить уведомление?*",
@@ -325,6 +374,9 @@ async def admin_notification_text_received(message: Message, state: FSMContext):
 
 @router.callback_query(AdminStates.waiting_for_notification_target, F.data.startswith("notify_"))
 async def admin_notification_target_selected(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     target = callback.data.split("_", 1)[1]
     data = await state.get_data()
     notification_text = data['notification_text']
@@ -350,6 +402,9 @@ async def admin_notification_target_selected(callback: CallbackQuery, state: FSM
 
 @router.callback_query(F.data == "confirm_yes", AdminStates.waiting_for_notification_target)
 async def admin_confirm_broadcast(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     data = await state.get_data()
     notification_text = data['notification_text']
     
@@ -378,6 +433,9 @@ async def admin_confirm_broadcast(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "confirm_no")
 async def admin_cancel_broadcast(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     await callback.message.edit_text(
         "❌ Рассылка отменена",
         reply_markup=kb.admin_menu()
@@ -387,6 +445,9 @@ async def admin_cancel_broadcast(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "admin_stats")
 async def admin_stats(callback: CallbackQuery):
+    if not await _ensure_admin_callback(callback):
+        return
+
     user_count = await db.get_user_count()
     products = await db.get_all_products()
     
@@ -423,6 +484,9 @@ async def admin_upload_file(message: Message, state: FSMContext):
 
 @router.callback_query(AdminStates.waiting_for_product_selection, F.data.startswith("prod_"))
 async def admin_select_product(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     product_key = callback.data.split("_", 1)[1]
     await state.update_data(product_key=product_key)
     
@@ -437,6 +501,9 @@ async def admin_select_product(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(AdminStates.waiting_for_file_type, F.data.startswith("file_type_"))
 async def admin_select_file_type(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     file_type = callback.data.split("_", 2)[2]
     await state.update_data(file_type=file_type)
     
@@ -450,6 +517,9 @@ async def admin_select_file_type(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(AdminStates.waiting_for_delete_product, F.data.startswith("admin_del_prod_"))
 async def admin_delete_select_product(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     product_key = callback.data.split("admin_del_prod_", 1)[1]
     product = await db.get_product(product_key)
     if not product:
@@ -478,6 +548,9 @@ async def admin_delete_select_product(callback: CallbackQuery, state: FSMContext
 
 @router.callback_query(AdminStates.waiting_for_delete_target, F.data == "admin_delete_back_products")
 async def admin_delete_back_products(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     await callback.message.edit_text(
         "🗑️ *Удаление загруженных файлов*\n\n"
         "Выберите продукт:",
@@ -492,6 +565,9 @@ async def admin_delete_back_products(callback: CallbackQuery, state: FSMContext)
     F.data == "admin_delete_cancel",
 )
 async def admin_delete_cancel(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     await callback.message.edit_text(
         "❌ Удаление отменено",
         reply_markup=kb.admin_menu(),
@@ -501,6 +577,9 @@ async def admin_delete_cancel(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(AdminStates.waiting_for_delete_target, F.data.startswith("admin_del_target_"))
 async def admin_delete_target(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     target = callback.data.split("admin_del_target_", 1)[1]
     data = await state.get_data()
     product_key = data.get("delete_product_key")
@@ -555,6 +634,9 @@ async def admin_delete_target(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(AdminStates.waiting_for_platform, F.data.startswith("platform_"))
 async def admin_select_platform(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     platform = callback.data.split("_", 1)[1]
     await state.update_data(platform=platform)
     platform_name = "Windows" if platform == "win" else "macOS"
@@ -564,6 +646,9 @@ async def admin_select_platform(callback: CallbackQuery, state: FSMContext):
 
 @router.message(AdminStates.waiting_for_version)
 async def admin_set_version(message: Message, state: FSMContext):
+    if not await _ensure_admin_message(message, state):
+        return
+
     version = message.text
     await state.update_data(version=version)
     
@@ -586,6 +671,9 @@ async def admin_set_version(message: Message, state: FSMContext):
 
 @router.callback_query(AdminStates.waiting_for_broadcast_action, F.data == "upload_broadcast")
 async def admin_broadcast_file(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     data = await state.get_data()
     version = data['version']
     file_type = data.get('file_type', 'app')
@@ -658,6 +746,9 @@ async def admin_broadcast_file(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(AdminStates.waiting_for_broadcast_action, F.data == "upload_save_only")
 async def admin_save_only(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     data = await state.get_data()
     version = data['version']
     file_type = data.get('file_type', 'app')
@@ -685,6 +776,9 @@ async def admin_save_only(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(AdminStates.waiting_for_broadcast_action, F.data == "upload_cancel")
 async def admin_cancel_upload(callback: CallbackQuery, state: FSMContext):
+    if not await _ensure_admin_callback(callback):
+        return
+
     await callback.message.edit_text("❌ Загрузка отменена")
     await state.clear()
     await callback.answer()
@@ -838,6 +932,8 @@ async def scout_scope_plan_request(callback: CallbackQuery, bot: Bot):
         return
 
     user = callback.from_user
+    safe_name = _escape_markdown(user.full_name or "не указано")
+    safe_username = _escape_markdown(f"@{user.username}" if user.username else "не указан")
     plan_line = f"{plan['title']} — {plan['details']}, {plan['price']}, {plan['updates']}"
     for admin_id in ADMIN_IDS:
         try:
@@ -846,7 +942,7 @@ async def scout_scope_plan_request(callback: CallbackQuery, bot: Bot):
                 f"💰 *Запрос Pro версии*\n\n"
                 f"Продукт: ScoutScope\n"
                 f"Тариф: {plan_line}\n"
-                f"Пользователь: {user.full_name} (@{user.username})\n"
+                f"Пользователь: {safe_name} ({safe_username})\n"
                 f"ID: {user.id}",
                 parse_mode="Markdown"
             )
@@ -864,6 +960,8 @@ async def buy_request(callback: CallbackQuery, bot: Bot):
     if product_key == "scout_scope":
         return
     user = callback.from_user
+    safe_name = _escape_markdown(user.full_name or "не указано")
+    safe_username = _escape_markdown(f"@{user.username}" if user.username else "не указан")
     
     # Notify Admins
     for admin_id in ADMIN_IDS:
@@ -872,7 +970,7 @@ async def buy_request(callback: CallbackQuery, bot: Bot):
                 admin_id,
                 f"💰 *Запрос Pro версии*\n\n"
                 f"Продукт: {product_key}\n"
-                f"Пользователь: {user.full_name} (@{user.username})\n"
+                f"Пользователь: {safe_name} ({safe_username})\n"
                 f"ID: {user.id}",
                 parse_mode="Markdown"
             )
