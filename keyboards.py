@@ -1,6 +1,11 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+WINDOWS_PREMIUM_EMOJI = '<tg-emoji emoji-id="5936226607931854504"></tg-emoji>'
+APPLE_PREMIUM_EMOJI = '<tg-emoji emoji-id="5352762486250545420"></tg-emoji>'
+WINDOWS_PLATFORM_LABEL = f"{WINDOWS_PREMIUM_EMOJI} Windows"
+MACOS_PLATFORM_LABEL = f"{APPLE_PREMIUM_EMOJI} macOS"
+
 def main_menu():
     kb = [
         [KeyboardButton(text="Магазин 🛍️"), KeyboardButton(text="Отзывы 💡")],
@@ -67,15 +72,15 @@ def file_type_menu():
 
 def platform_menu():
     builder = InlineKeyboardBuilder()
-    builder.button(text="Windows", callback_data="platform_win")
-    builder.button(text="macOS", callback_data="platform_mac")
+    builder.button(text=WINDOWS_PLATFORM_LABEL, callback_data="platform_win")
+    builder.button(text=MACOS_PLATFORM_LABEL, callback_data="platform_mac")
     builder.adjust(2)
     return builder.as_markup()
 
 def demo_platform_menu(product_key: str):
     builder = InlineKeyboardBuilder()
-    builder.button(text="Windows", callback_data=f"demo_download_{product_key}_win")
-    builder.button(text="macOS", callback_data=f"demo_download_{product_key}_mac")
+    builder.button(text=WINDOWS_PLATFORM_LABEL, callback_data=f"demo_download_{product_key}_win")
+    builder.button(text=MACOS_PLATFORM_LABEL, callback_data=f"demo_download_{product_key}_mac")
     back_callback = "back_to_scout_scope" if product_key == "scout_scope" else f"prod_{product_key}"
     builder.button(text="Назад 🔙", callback_data=back_callback)
     builder.adjust(2)

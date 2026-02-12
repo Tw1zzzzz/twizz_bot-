@@ -3,15 +3,12 @@ from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.types import Message, CallbackQuery, ContentType, FSInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from html import escape
 
 import keyboards as kb
 import database as db
 from config import ADMIN_IDS
 
 router = Router()
-WINDOWS_PREMIUM_EMOJI = '<tg-emoji emoji-id="5936226607931854504"></tg-emoji>'
-APPLE_PREMIUM_EMOJI = '<tg-emoji emoji-id="5352762486250545420"></tg-emoji>'
 
 SCOUT_SCOPE_DEMO_INFO = (
     "*Демоверсия* — это демонстрация продукта без полного функционала.\n\n"
@@ -109,17 +106,17 @@ def _escape_markdown(value: str) -> str:
 
 
 def _build_product_text(product_key: str, product) -> str:
-    text = f"📦 <b>{escape(product['name'])}</b>\n\n{escape(product['description'])}"
+    text = f"📦 *{product['name']}*\n\n{product['description']}"
 
     if product_key in ("scout_scope", "crm"):
         if product["version"]:
-            text += f"\n\n{WINDOWS_PREMIUM_EMOJI} Windows версия: {escape(product['version'])}"
+            text += f"\n\n🪟 Windows версия: {_escape_markdown(product['version'])}"
         if product["version_mac"]:
-            text += f"\n{APPLE_PREMIUM_EMOJI} macOS версия: {escape(product['version_mac'])}"
+            text += f"\n🍎 macOS версия: {_escape_markdown(product['version_mac'])}"
         if product["db_version"]:
-            text += f"\n🗄️ Версия БД: {escape(product['db_version'])}"
+            text += f"\n🗄️ Версия БД: {_escape_markdown(product['db_version'])}"
     elif product["version"]:
-        text += f"\n\nВерсия: {escape(product['version'])}"
+        text += f"\n\nВерсия: {_escape_markdown(product['version'])}"
 
     return text
 
@@ -174,7 +171,7 @@ async def _render_product_view(callback: CallbackQuery, text: str, markup, photo
                 await callback.message.edit_caption(
                     caption=text,
                     reply_markup=markup,
-                    parse_mode="HTML",
+                    parse_mode="Markdown",
                 )
             except Exception:
                 await callback.message.edit_caption(caption=text, reply_markup=markup)
@@ -190,14 +187,14 @@ async def _render_product_view(callback: CallbackQuery, text: str, markup, photo
                 photo=FSInputFile(photo_path),
                 caption=text,
                 reply_markup=markup,
-                parse_mode="HTML",
+                parse_mode="Markdown",
             )
         except Exception:
             await callback.message.answer(text, reply_markup=markup)
         return
 
     try:
-        await callback.message.edit_text(text, reply_markup=markup, parse_mode="HTML")
+        await callback.message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
     except Exception:
         await callback.message.edit_text(text, reply_markup=markup)
 
